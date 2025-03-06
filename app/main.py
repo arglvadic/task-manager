@@ -1,21 +1,27 @@
 from fastapi import FastAPI
-from app.database import check_db_connection
+from app.database import engine, Base
+from app.routes import users ,tasks, events , notifications
 
+# Создаём объект FastAPI
+app = FastAPI(title="Task Manager API", version="1.0")
 
-app = FastAPI()
+# Подключаем маршруты API
+app.include_router(users.router, prefix="/users", tags=["Users"])
+app.include_router(tasks.router, prefix="/tasks", tags=["Tasks"])
+app.include_router(events.router, prefix="/events", tags=["Events"])
+app.include_router(notifications.router, prefix="/notifications", tags=["Notifications"])
 
-@app.get("/check-db")
-async def check_db():
-    await check_db_connection()
-    return {"message": "База данных работает!"}
+# Корневой эндпоинт (для проверки работы сервера)
+@app.get("/")
+async def root():
+    return {"message": "Task Manager API is running"}
 
-# Запуск проверки БД при старте сервера
-@app.on_event("startup")
-async def startup_event():
-    await check_db_connection()
-    print(" База данных проверена при старте сервера.")
+# Функция для инициализации БД (создание таблиц)
+async def init_db():
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
 
-# Uvicorn правильно запускает FastAPI, нет необходимости в asyncio.run()
+# Запуск сервера (если файл запускается напрямую)
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    uvicorn.run("app.main:app", host="127.0.0.1", port=8000, reload=True)
